@@ -1,0 +1,84 @@
+package com.devmmurray.calculator
+
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
+import androidx.lifecycle.ViewModel
+import java.math.BigDecimal
+
+class BigDecimalViewModel: ViewModel() {
+    private var operand: BigDecimal? = null
+    private var pendingOperation = "="
+
+    private val result = MutableLiveData<BigDecimal>()
+    val stringResult: LiveData<String>
+        get() = Transformations.map(result) { it.toString() }
+    private val newNumber = MutableLiveData<String>()
+    val stringNewNumber: LiveData<String>
+        get() = newNumber
+    private val operation = MutableLiveData<String>()
+    val stringOperation: LiveData<String>
+        get() = operation
+
+    fun digitPressed(caption: String) {
+        if (newNumber.value != null) {
+            newNumber.value = newNumber.value + caption
+        } else {
+            newNumber.value = caption
+        }
+    }
+
+    fun operandPressed(op: String) {
+        try {
+            val value = newNumber.value?.toBigDecimal()
+            if (value != null) {
+                performOperation(value, op)
+            }
+        } catch (e: NumberFormatException) {
+            newNumber.value = ""
+        }
+        pendingOperation = op
+        operation.value = pendingOperation
+    }
+
+    fun negPressed() {
+        val value = newNumber.value
+        if (value == null || value.isEmpty()) {
+            newNumber.value = "-"
+        } else {
+            try {
+                var doubleValue = value.toBigDecimal()
+                doubleValue *= BigDecimal.valueOf(-1)
+                newNumber.value = doubleValue.toString()
+            } catch (e: NumberFormatException) {
+                newNumber.value = ""
+            }
+        }
+    }
+
+    fun clearPressed() {
+        operand = null
+        result.value = BigDecimal.valueOf(0.0)
+        newNumber.value = ""
+        operation.value = "="
+    }
+
+    private fun performOperation(value: BigDecimal, operation: String) {
+        if (operand == null) {
+            operand = value
+        } else {
+            if (pendingOperation == "=") {
+                pendingOperation = operation
+            }
+            when (pendingOperation) {
+                "=" -> operand = value
+                "/" -> operand = if (value == BigDecimal.valueOf(0.0)) BigDecimal.valueOf(Double.NaN) else operand!! / value
+                "X" -> operand = operand!! * value
+                "-" -> operand = operand!! - value
+                "+" -> operand = operand!! + value
+            }
+        }
+        result.value = operand
+        newNumber.value = ""
+    }
+}
